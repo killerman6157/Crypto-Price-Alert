@@ -1,76 +1,78 @@
-# 🤖 Crypto Price Alert Bot (Hausa)
+# 🤖 Crypto Price Alert Bot (Hausa Version)
 
-Wannan bot yana baka damar neman farashin crypto kai tsaye daga Telegram ta amfani da **CoinGecko API**.
-
----
-
-## 🛠 Abubuwan da bot ɗin ke iya yi
-
-- Nemi farashin crypto kamar: `/price bitcoin`, `/price ethereum`
-- Samun amsa a cikin seconds daga CoinGecko API
-- Sauƙin girka bot ɗin da amfani da `.env` don sirri
-- Yin amfani da **Python**, **python-telegram-bot**, da **dotenv**
+Bot ɗin Telegram da ke taimakawa masu amfani su duba farashin cryptocurrency da kuma saita faɗakarwa (alerts) idan farashi ya kai wani mataki. An rubuta shi cikin **Python** kuma yana amfani da **CoinGecko API**.
 
 ---
 
-## 📂 Tsarin Files
+## ✨ Abubuwan Da Bot Yake Iya Yi
 
-Crypto-Price-Alert/ ├── main.py              # Babban file na bot ɗin ├── .env                 # Sirrin BOT_TOKEN dinka ├── requirements.txt     # Jerin libraries da ake bukata └── README.md            # Wannan bayani
+- 🔍 Samun farashin duk wani cryptocurrency (misali: `/price bitcoin`)
+- ⏰ Saita faɗakarwa idan farashi ya hau ko ya fadi (misali: `/alert ethereum 3000 up`)
+- 📋 Duba jerin faɗakarwar da ka saita (`/myalerts`)
+- ❌ Soke faɗakarwa da baka buƙata (`/cancelalert bitcoin`)
 
 ---
 
-## 🧪 Yadda zaka girka bot ɗin a cikin Termux ko PC
+## ⚙️ Yadda Ake Gudanar da Bot ɗin
 
-1. **Clone repository:**
-
+### 1. Kwafi repo ɗin:
 ```bash
-git clone https://github.com/killerman6157/Crypto-Price-Alert.git
-cd Crypto-Price-Alert
+git clone https://github.com/YOUR_USERNAME/CryptoPriceBot.git
+cd CryptoPriceBot
 
-2. Install dependencies:
-
-
+2. Saka python-dotenv da sauran dependencies:
 
 pip install -r requirements.txt
 
-3. Create .env file a cikin wannan folder:
+3. Sanya token a cikin .env:
 
+BOT_TOKEN=123456789:AAEXAMPLE-TOKEN
 
-
-nano .env
-
-Ka saka:
-
-BOT_TOKEN=SAKA_BOT_TOKEN_DINKA_ANAN
-
-4. Run bot ɗinka:
-
-
+4. Gudanar da bot ɗin:
 
 python main.py
 
 
 ---
 
-💬 Yadda ake amfani da shi
+🧠 Misalan Umarnin Bot
 
-A cikin Telegram, rubuta:
+Umurni	Aiki
 
-/price bitcoin
-/price usdt
-/price solana
-
-Zaka samu amsa kamar:
-
-> 💰 Current price of BITCOIN: $62,150
-
+/start	Fara tattaunawa da bot
+/price bitcoin	Duba farashin Bitcoin
+/alert eth 2500 up	Saita faɗakarwa idan ETH ya hau sama da $2500
+/myalerts	Duba duk alerts ɗinka
+/cancelalert eth	Soke faɗakarwar ETH
 
 
 
 ---
 
-🧑‍💻 Marubuci
+📦 Abubuwan Da Bot Ke Amfani Da Su
+
+python-telegram-bot
+
+requests
+
+dotenv
+
+CoinGecko API
+
+
+
+---
+
+🧑‍💻 Author
 
 Bashir Rabiu
-Telegram: @HausaEscrowSupport
-GitHub: github.com/killerman6157
+📍 Kano, Nigeria
+🌐 GitHub: killerman6157
+📧 bashirweb3jobs@gmail.com
+
+
+---
+
+📜 License
+
+MIT License - Free don amfani ko gyarawa. 🌍
