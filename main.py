@@ -154,7 +154,21 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE):
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Ban gane wannan umarnin ba. Don Allah gwada umarni kamar /start ko /help.")
+async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message:
+        await update.message.reply_text("✅ Ka dawo zuwa menu.", reply_markup=main_menu_keyboard())
+    elif update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text("✅ Ka dawo zuwa menu.", reply_markup=main_menu_keyboard())
 
+def main_menu_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("📈 Farashi", callback_data="price")],
+        [InlineKeyboardButton("🛎️ Saita Faɗakarwa", callback_data="alert")],
+        [InlineKeyboardButton("📚 Jagora", callback_data="guide")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -165,6 +179,8 @@ def main():
     app.add_handler(CommandHandler("cancelalert", cancel_alert))
     app.add_handler(MessageHandler(filters.COMMAND, unknown))
     app.job_queue.run_repeating(check_alerts, interval=300, first=10)
+    app.add_handler(CommandHandler("back", back_to_menu))  # 👈 Slash command
+    app.add_handler(CallbackQueryHandler(back_to_menu, pattern="^back$"))  # 👈 Button click
     logger.info("Bot yana farawa...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
