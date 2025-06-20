@@ -1,13 +1,12 @@
-# main.py – gyaran asyncio event loop issue
+# main.py – Crypto Price Bot (Termux & Python 3.12 compatible)
 
 import os
 import requests
+from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from dotenv import load_dotenv
-import asyncio
 
-# Load .env
+# Load token from .env
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
@@ -33,21 +32,14 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(message)
 
 
-async def start_bot():
+# == Direct run style, no asyncio.run() ==
+def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("price", price_command))
+
     print("🤖 Bot is running...")
-    await app.run_polling()
+    app.run_polling()  # this works without asyncio.run()
 
 
-# == Run safely inside existing asyncio event loop ==
-if __name__ == '__main__':
-    try:
-        asyncio.run(start_bot())
-    except RuntimeError as e:
-        if str(e).startswith("This event loop is already running"):
-            loop = asyncio.get_event_loop()
-            loop.create_task(start_bot())
-            loop.run_forever()
-        else:
-            raise
+if __name__ == "__main__":
+    main()
