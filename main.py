@@ -1,45 +1,64 @@
-# main.py – Crypto Price Bot (Termux & Python 3.12 compatible)
+# main.py — Crypto Price Bot (Stable event loop version)
 
 import os
 import requests
+import asyncio
 from dotenv import load_dotenv
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+)
 
-# Load token from .env
+# Load token
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 
+# Get price from CoinGecko
 def get_crypto_price(coin: str) -> str:
     url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin}&vs_currencies=usd"
     try:
-        response = requests.get(url)
-        data = response.json()
-        price = data[coin]['usd']
+        res = requests.get(url)
+        data = res.json()
+        price = data[coin]["usd"]
         return f"💰 Current price of {coin.upper()}: ${price}"
     except:
-        return "❌ Coin not found or API error. Try again with another coin."
+        return "❌ Coin not found or API error."
 
 
+# Bot command handler
 async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text("Usage: /price coin_name\nExample: /price bitcoin")
         return
-
     coin = context.args[0].lower()
-    message = get_crypto_price(coin)
-    await update.message.reply_text(message)
+    msg = get_crypto_price(coin)
+    await update.message.reply_text(msg)
 
 
-# == Direct run style, no asyncio.run() ==
-def main():
+# Manual asyncio approach (NO asyncio.run())
+async def start():
+    print("🤖 Bot is starting...")
+
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("price", price_command))
 
-    print("🤖 Bot is running...")
-    app.run_polling()  # this works without asyncio.run()
+    await app.initialize()
+    await app.start()
+    print("✅ Bot is running.")
+    await app.updater.start_polling()
+    await app.updater.idle()
 
 
+# Run inside existing loop or new one
 if __name__ == "__main__":
-    main()
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    loop.create_task(start())
+    loop.run_forever()
