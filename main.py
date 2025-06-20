@@ -24,20 +24,23 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 # Check if BOT_TOKEN is loaded
 if not BOT_TOKEN:
     logger.error("BOT_TOKEN not found in environment variables. Please set it in your .env file.")
-    exit(1) # Exit if no token
+    exit(1)
 
 # Get price from CoinGecko
 async def get_crypto_price(coin: str) -> str:
     url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin}&vs_currencies=usd"
     try:
-        res = await asyncio.to_thread(requests.get, url, timeout=10)
-        res.raise_for_status()
+        # Use asyncio.to_thread for blocking I/O (requests.get)
+        # This prevents blocking the event loop
+        res = await asyncio.to_thread(requests.get, url, timeout=10) # Added timeout
+        res.raise_for_status()  # Raise an HTTPError for bad responses (4xx or 5xx)
         data = res.json()
 
         if coin in data and "usd" in data[coin]:
             price = data[coin]["usd"]
             return f"💰 Current price of {coin.upper()}: ${price}"
         else:
+            # More specific error for when coin data is missing
             return f"❌ Ba a sami bayanan farashin {coin} ba."
     except requests.exceptions.Timeout:
         logger.error(f"Timeout error when fetching price for {coin}: API took too long to respond.")
@@ -59,33 +62,35 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Yadda ake amfani: `/price sunan_coin`\nMisali: `/price bitcoin`")
         return
     coin = context.args[0].lower()
+    # Inform the user that the request is being processed
     await update.message.reply_text(f"Neman farashin {coin}...")
-    msg = await get_crypto_price(coin)
+    msg = await get_crypto_price(coin) # Await the async function
     await update.message.reply_text(msg)
 
 
-# Main async function to start the bot
-async def start():
+# Main function to run the bot
+def main():
     logger.info("🤖 Bot yana farawa...")
 
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("price", price_command))
+    # Build the Application
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # Initialize the application
-    await app.initialize()
+    # Add handlers
+    application.add_handler(CommandHandler("price", price_command))
+
     logger.info("✅ Bot yana gudana.")
 
-    # Start polling for updates. This function blocks until the bot is stopped.
-    await app.run_polling()
+    # Run the bot
+    # This will initialize, start, run polling, and handle shutdown internally.
+    application.run_polling(drop_pending_updates=True)
 
 
 # Entry point of the script
 if __name__ == "__main__":
     try:
-        # Use asyncio.run() for simpler execution and proper loop management
-        asyncio.run(start())
+        main()
     except KeyboardInterrupt:
         logger.info("Bot is shutting down due to user interrupt.")
     except Exception as e:
-        logger.error(f"An error occurred in the main event loop: {e}")
+        logger.error(f"An error occurred: {e}")
 
