@@ -1,39 +1,52 @@
-# 🤖 Crypto Price Alert Bot (Hausa Version)
+🤖 Crypto Price Alert Bot (Hausa Version)
 
-![Logo](logo.png)
-![Preview](preview.png)
+ 
 
-**Crypto Price Alert Bot** yana taimakawa masu amfani su duba farashin cryptocurrencies da kuma saita faɗakarwa idan farashi ya hau ko ya fadi. An rubuta shi da Python tare da CoinGecko API da Telegram Bot API. Wannan sigar tana goyon bayan harshen Hausa 🇳🇬.
+Crypto Price Alert Bot yana taimakawa masu amfani su duba farashin cryptocurrencies da kuma saita faɗakarwa idan farashi ya hau ko ya fadi. An rubuta shi da Python tare da CoinGecko API da Telegram Bot API. Wannan sigar tana goyon bayan harshen Hausa 🇳🇬.
 
----
-
-## ✨ Abubuwan da Bot ɗin ke Iya Yi
-
-- 🔍 Samun farashin duk wani cryptocurrency
-- ⏰ Saita faɗakarwa idan farashi ya kai wani mataki
-- 📋 Duba jerin faɗakarwarka
-- ❌ Soke faɗakarwa
-- 📨 Karɓar saƙon nan take idan farashin ya kai ƙa’ida
 
 ---
 
-## 🧪 Misalan Umarnin
+✨ Abubuwan da Bot ɗin ke Iya Yi
 
-| Umurni | Aiki |
-|--------|------|
-| `/start` | Fara amfani da bot |
-| `/price bitcoin` | Duba farashin Bitcoin |
-| `/alert eth 3000 up` | Saita faɗakarwa idan ETH ya kai $3000 ko fiye |
-| `/myalerts` | Duba faɗakarwarka |
-| `/cancelalert eth` | Soke faɗakarwar ETH |
+🔍 Samun farashin duk wani cryptocurrency
+
+⏰ Saita faɗakarwa idan farashi ya kai wani mataki
+
+📋 Duba jerin faɗakarwarka
+
+❌ Soke faɗakarwa
+
+📨 Karɓar saƙon nan take idan farashin ya kai ƙa’ida
+
+🧭 Fara da /start, taimako da /help, da komawa da /back
+
+📚 Jagorar ciniki ta /guide (a Hausa)
+
+
 
 ---
 
-## ⚙️ Yadda Ake Shigar da Bot
+🧪 Misalan Umarnin
 
-### 1. Clone repo
+Umurni	Aiki
 
-```bash
+/start	Fara amfani da bot
+/price bitcoin	Duba farashin Bitcoin
+/alert eth 3000 up	Saita faɗakarwa idan ETH ya kai $3000 ko fiye
+/myalerts	Duba faɗakarwarka
+/cancelalert eth	Soke faɗakarwar ETH
+/guide	Jagorar amfani da bot da ciniki (Hausa)
+/back	Komawa zuwa babban menu
+
+
+
+---
+
+⚙️ Yadda Ake Shigar da Bot
+
+1. Clone repo
+
 git clone https://github.com/killerman6157/Crypto-Price-Alert.git
 cd Crypto-Price-Alert
 
@@ -109,3 +122,4 @@ Bashir Rabiu
 📜 Lasisi
 
 MIT License – kyauta don amfani, gyara, da rabawa.
+
