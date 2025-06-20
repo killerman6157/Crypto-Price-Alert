@@ -5,7 +5,7 @@ import logging
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import (
-    ApplicationBuilder,
+    Application,
     CommandHandler,
     ContextTypes,
 )
@@ -69,28 +69,26 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # Main function to run the bot
-def main():
+async def main():
     logger.info("🤖 Bot yana farawa...")
 
     # Build the Application
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
+    application = Application.builder().token(BOT_TOKEN).build()
 
-    # Add handlers
+    # Add command handler
     application.add_handler(CommandHandler("price", price_command))
 
-    logger.info("✅ Bot yana gudana.")
+    # Run the bot until the user presses Ctrl-C
+    await application.run_polling(drop_pending_updates=True)
 
-    # Run the bot
-    # This will initialize, start, run polling, and handle shutdown internally.
-    application.run_polling(drop_pending_updates=True)
-
+    logger.info("✅ Bot ya tsaya.")
 
 # Entry point of the script
 if __name__ == "__main__":
     try:
-        main()
+        asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Bot is shutting down due to user interrupt.")
     except Exception as e:
         logger.error(f"An error occurred: {e}")
-
+        
