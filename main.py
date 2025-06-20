@@ -1,6 +1,6 @@
 import os import logging import requests from telegram import Update from telegram.ext import ( Application, CommandHandler, MessageHandler, filters, ContextTypes ) from dotenv import load_dotenv
 
-#Load environment variables from .env file
+# Load environment variables from .env file
 
 load_dotenv()
 
@@ -50,5 +50,4 @@ async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE): await upd
 def main(): app = Application.builder().token(TELEGRAM_BOT_TOKEN).build() app.add_handler(CommandHandler("start", start)) app.add_handler(CommandHandler("help", start)) app.add_handler(CommandHandler("price", get_price)) app.add_handler(CommandHandler("alert", set_alert)) app.add_handler(CommandHandler("myalerts", my_alerts)) app.add_handler(CommandHandler("cancelalert", cancel_alert)) app.add_handler(MessageHandler(filters.COMMAND, unknown)) app.job_queue.run_repeating(check_alerts, interval=300, first=10) logger.info("Bot yana farawa...") app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if name == "main": main()
-
 
