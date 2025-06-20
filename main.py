@@ -1,17 +1,17 @@
-# main.py – Crypto Price Bot using CoinGecko API
+# main.py – gyaran asyncio event loop issue
 
 import os
 import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from dotenv import load_dotenv
+import asyncio
 
-# === Load the BOT token from .env file ===
+# Load .env
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 
-# === Function to get price from CoinGecko ===
 def get_crypto_price(coin: str) -> str:
     url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin}&vs_currencies=usd"
     try:
@@ -23,7 +23,6 @@ def get_crypto_price(coin: str) -> str:
         return "❌ Coin not found or API error. Try again with another coin."
 
 
-# === /price command handler ===
 async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text("Usage: /price coin_name\nExample: /price bitcoin")
@@ -34,16 +33,21 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(message)
 
 
-# === Main function to start the bot ===
-async def main():
+async def start_bot():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("price", price_command))
-
     print("🤖 Bot is running...")
     await app.run_polling()
 
 
-# === Entry point ===
+# == Run safely inside existing asyncio event loop ==
 if __name__ == '__main__':
-    import asyncio
-    asyncio.run(main())
+    try:
+        asyncio.run(start_bot())
+    except RuntimeError as e:
+        if str(e).startswith("This event loop is already running"):
+            loop = asyncio.get_event_loop()
+            loop.create_task(start_bot())
+            loop.run_forever()
+        else:
+            raise
