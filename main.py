@@ -13,7 +13,7 @@ from telegram.ext import (
 
 from dotenv import load_dotenv
 
-Load environment variables from .env file
+#Load environment variables from .env file
 
 load_dotenv() TELEGRAM_BOT_TOKEN = os.getenv("BOT_TOKEN") if not TELEGRAM_BOT_TOKEN: raise ValueError("⚠️ BOT_TOKEN bai da kyau ko bai samu ba daga .env file. Tabbatar ka saka BOT_TOKEN=... a cikin .env")
 
