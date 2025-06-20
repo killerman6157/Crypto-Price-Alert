@@ -72,5 +72,5 @@ Zaka samu amsa kamar:
 🧑‍💻 Marubuci
 
 Bashir Rabiu
-Telegram: @killerman6157
+Telegram: @HausaEscrowSupport
 GitHub: github.com/killerman6157
