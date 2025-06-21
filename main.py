@@ -53,7 +53,7 @@ async def send_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Zaɓi ɗaya daga cikin abubuwa masu zuwa:"
     )
     keyboard = [
-        [InlineKeyboardButton("📚 Setup Guide", url=SETUP_GUIDE_LINK)], # Added Setup Guide button with URL
+        [InlineKeyboardButton("📚 Setup Guide", url=SETUP_GUIDE_LINK)],
         [InlineKeyboardButton("📈 Duba Farashin Cryptocurrency", callback_data="show_price_info")],
         [InlineKeyboardButton("🛎️ Saita Faɗakarwar Farashi", callback_data="show_alert_info")],
         [InlineKeyboardButton("📋 Duba Faɗakarwarka", callback_data="my_alerts_button")],
@@ -62,9 +62,15 @@ async def send_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Logic to edit existing message or send a new one
     if update.callback_query:
-        await update.callback_query.answer()
-        await update.callback_query.edit_message_text(menu_text, reply_markup=reply_markup, parse_mode="Markdown")
+        # If it's a callback query, edit the message that contained the button
+        try:
+            await update.callback_query.edit_message_text(menu_text, reply_markup=reply_markup, parse_mode="Markdown")
+        except Exception as e:
+            # Handle the case where the message might have been too old to edit or already deleted
+            logger.warning(f"Failed to edit message for main menu: {e}. Sending new message.")
+            await update.callback_query.message.reply_text(menu_text, reply_markup=reply_markup, parse_mode="Markdown")
     elif update.message:
+        # If it's a new command (/start, /menu), send a new message
         await update.message.reply_text(menu_text, reply_markup=reply_markup, parse_mode="Markdown")
 
 
@@ -97,11 +103,11 @@ async def show_alert_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles the /start command and provides the initial welcome message with main menu buttons."""
-    await send_main_menu(update, context) # Directly show the main menu with the new buttons
+    await send_main_menu(update, context)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Provides help information. This is now primarily for the /help command, not a menu button."""
+    """Provides help information."""
     help_message = (
         "📚 *Taimako da Bayani*\n\n"
         "Ga jerin umarnoni da zaka iya amfani dasu:\n"
@@ -123,7 +129,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Fetches and displays the price of a given cryptocurrency."""
+    # We need to know if this command was triggered directly or via a callback.
+    # For /price command, it's always a new message.
+    # We need to save the message_id to allow editing it later if "Back to menu" is pressed.
+    
     if not context.args:
+        # If no arguments are provided, send a message to ask for coin name
         keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
@@ -161,12 +172,14 @@ async def get_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    # Changed to edit_message_text if it's a callback query leading to this,
-    # but for direct /price command, it's reply_text
-    if update.callback_query: # This case is unlikely for /price command but good for consistency
-        await update.callback_query.edit_message_text(price_message, reply_markup=reply_markup, parse_mode="Markdown")
-    else: # For direct command usage
-        await update.message.reply_text(price_message, reply_markup=reply_markup, parse_mode="Markdown")
+
+    # For direct commands, we always send a new message
+    sent_message = await update.message.reply_text(price_message, reply_markup=reply_markup, parse_mode="Markdown")
+    # Store the message ID for later editing if "Back to menu" is pressed on it
+    # We will use context.user_data to store the last message ID that can be edited
+    context.user_data['last_editable_message_id'] = sent_message.message_id
+    context.user_data['last_editable_chat_id'] = sent_message.chat_id
+
 
 async def set_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sets a price alert for a cryptocurrency."""
@@ -211,10 +224,10 @@ async def set_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    if update.callback_query: # This case is unlikely for /alert command but good for consistency
-        await update.callback_query.edit_message_text(alert_message, reply_markup=reply_markup, parse_mode="Markdown")
-    else: # For direct command usage
-        await update.message.reply_text(alert_message, reply_markup=reply_markup, parse_mode="Markdown")
+    
+    sent_message = await update.message.reply_text(alert_message, reply_markup=reply_markup, parse_mode="Markdown")
+    context.user_data['last_editable_message_id'] = sent_message.message_id
+    context.user_data['last_editable_chat_id'] = sent_message.chat_id
 
 
 async def my_alerts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -238,7 +251,9 @@ async def my_alerts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.answer()
         await update.callback_query.edit_message_text(message_text, reply_markup=reply_markup, parse_mode="Markdown")
     else: # For direct command usage
-        await update.message.reply_text(message_text, reply_markup=reply_markup, parse_mode="Markdown")
+        sent_message = await update.message.reply_text(message_text, reply_markup=reply_markup, parse_mode="Markdown")
+        context.user_data['last_editable_message_id'] = sent_message.message_id
+        context.user_data['last_editable_chat_id'] = sent_message.chat_id
 
 
 async def cancel_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -268,10 +283,10 @@ async def cancel_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    if update.callback_query: # This case is unlikely for /cancelalert command but good for consistency
-        await update.callback_query.edit_message_text(cancel_message, reply_markup=reply_markup, parse_mode="Markdown")
-    else: # For direct command usage
-        await update.message.reply_text(cancel_message, reply_markup=reply_markup, parse_mode="Markdown")
+    sent_message = await update.message.reply_text(cancel_message, reply_markup=reply_markup, parse_mode="Markdown")
+    context.user_data['last_editable_message_id'] = sent_message.message_id
+    context.user_data['last_editable_chat_id'] = sent_message.chat_id
+
 
 async def check_alerts(context: ContextTypes.DEFAULT_TYPE):
     """Periodically checks current prices against set alerts and notifies users."""
@@ -310,66 +325,71 @@ async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles unknown commands."""
     keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    # Use edit_message_text if the unknown command was typed in a message that could be edited
-    # but for a fresh command, reply_text is better
-    if update.callback_query: # This path is unlikely for /unknown command directly
-        await update.callback_query.edit_message_text(
-            "Ban gane wannan umarnin ba. Don Allah gwada umarni kamar `/menu` ko `/price bitcoin`.",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
-    else:
-        await update.message.reply_text(
-            "Ban gane wannan umarnin ba. Don Allah gwada umarni kamar `/menu` ko `/price bitcoin`.",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
+    sent_message = await update.message.reply_text(
+        "Ban gane wannan umarnin ba. Don Allah gwada umarni kamar `/menu` ko `/price bitcoin`.",
+        reply_markup=reply_markup,
+        parse_mode="Markdown"
+    )
+    context.user_data['last_editable_message_id'] = sent_message.message_id
+    context.user_data['last_editable_chat_id'] = sent_message.chat_id
+
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles all callback queries from inline keyboard buttons."""
     query = update.callback_query
-    await query.answer()
+    await query.answer() # Acknowledge the button press
 
     if query.data == "back_to_main_menu":
-        await send_main_menu(update, context)
+        # If "Back to Menu" is pressed, first try to edit the message that contained the button
+        # If that fails (e.g., message too old or not from this bot), try to edit the last editable message stored
+        # If both fail, send a new menu message.
+        try:
+            await query.edit_message_text(
+                "🤖 *Crypto Price Bot Menu*\nZaɓi ɗaya daga cikin abubuwa masu zuwa:",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📚 Setup Guide", url=SETUP_GUIDE_LINK)],
+                    [InlineKeyboardButton("📈 Duba Farashin Cryptocurrency", callback_data="show_price_info")],
+                    [InlineKeyboardButton("🛎️ Saita Faɗakarwar Farashi", callback_data="show_alert_info")],
+                    [InlineKeyboardButton("📋 Duba Faɗakarwarka", callback_data="my_alerts_button")],
+                ]),
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to edit callback query message on back_to_main_menu: {e}")
+            # Fallback: Try to edit the last stored editable message
+            last_msg_id = context.user_data.get('last_editable_message_id')
+            last_chat_id = context.user_data.get('last_editable_chat_id')
+            if last_msg_id and last_chat_id:
+                try:
+                    await context.bot.edit_message_text(
+                        chat_id=last_chat_id,
+                        message_id=last_msg_id,
+                        text="🤖 *Crypto Price Bot Menu*\nZaɓi ɗaya daga cikin abubuwa masu zuwa:",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("📚 Setup Guide", url=SETUP_GUIDE_LINK)],
+                            [InlineKeyboardButton("📈 Duba Farashin Cryptocurrency", callback_data="show_price_info")],
+                            [InlineKeyboardButton("🛎️ Saita Faɗakarwar Farashi", callback_data="show_alert_info")],
+                            [InlineKeyboardButton("📋 Duba Faɗakarwarka", callback_data="my_alerts_button")],
+                        ]),
+                        parse_mode="Markdown"
+                    )
+                    # Clear the stored message ID after successful edit to prevent editing old messages inadvertently
+                    del context.user_data['last_editable_message_id']
+                    del context.user_data['last_editable_chat_id']
+                except Exception as e:
+                    logger.warning(f"Failed to edit last_editable_message_id on back_to_main_menu: {e}. Sending new menu message.")
+                    await send_main_menu(update, context) # Fallback to sending new message
+            else:
+                await send_main_menu(update, context) # Fallback to sending new message
+
     elif query.data == "show_price_info":
         await show_price_info(update, context)
     elif query.data == "show_alert_info":
         await show_alert_info(update, context)
     elif query.data == "my_alerts_button":
         await my_alerts_command(update, context)
-    # Note: 'guide' callback_data for help is no longer in the main menu, 
-    # but kept here if it might come from somewhere else. 
-    # The /help command serves as the primary way to get full help text now.
-    elif query.data == "guide": 
+    elif query.data == "guide": # This might not be used anymore if it's not in the menu, but kept for safety.
         await help_command(update, context)
 
 
-def main():
-    """Starts the bot."""
-    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-
-    # Command Handlers
-    app.add_handler(CommandHandler("start", start_command))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("menu", send_main_menu))
-    app.add_handler(CommandHandler("price", get_price))
-    app.add_handler(CommandHandler("alert", set_alert))
-    app.add_handler(CommandHandler("myalerts", my_alerts_command))
-    app.add_handler(CommandHandler("cancelalert", cancel_alert))
-
-    # Message Handler for unknown commands
-    app.add_handler(MessageHandler(filters.COMMAND, unknown))
-    
-    # Callback Query Handler for inline keyboard buttons
-    app.add_handler(CallbackQueryHandler(button_handler))
-
-    # Job Queue for checking alerts
-    app.job_queue.run_repeating(check_alerts, interval=300, first=10) # Checks every 5 minutes (300 seconds)
-
-    logger.info("Bot is starting...")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
-
-if __name__ == "__main__":
-    main()
-                        
+de
