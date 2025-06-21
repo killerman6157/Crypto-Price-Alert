@@ -3,6 +3,7 @@ import logging
 import requests
 import json
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.constants import ChatAction
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -38,21 +39,40 @@ price_alerts = load_alerts()
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Sannu! Ni ne bot dinka na Crypto Price Alert.\n"
-        "Zan iya taimaka maka samun farashin cryptocurrency da kuma saita faɗakarwa.\n\n"
-        "Amfani:\n"
-        "/price <sunan_coin> - Don samun farashin wani coin misali: /price bitcoin\n"
-        "/alert <sunan_coin> <farashi> <up/down> - Don saita faɗakarwa misali: /alert ethereum 3000 up\n"
-        "/myalerts - Don ganin faɗakarwarku\n"
-        "/cancelalert <sunan_coin> - Don soke faɗakarwa"
+async def send_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    menu_text = (
+        "🤖 *Crypto Price Bot Menu*\n"
+        "Zaɓi ɗaya daga cikin abubuwa masu zuwa:\n\n"
+        "📈 - Duba farashin cryptocurrency\n"
+        "🛎️ - Saita faɗakarwar farashi\n"
+        "📋 - Duba faɗakarwarka\n"
+        "📚 - Karanta jagora\n"
+        "🔙 - Komawa menu\n"
     )
+    keyboard = [
+        [InlineKeyboardButton("📈 Duba Farashi", callback_data="price")],
+        [InlineKeyboardButton("🛎️ Faɗakarwa", callback_data="alert")],
+        [InlineKeyboardButton("📋 My Alerts", callback_data="myalerts")],
+        [InlineKeyboardButton("📚 Jagora", callback_data="guide")],
+        [InlineKeyboardButton("🔙 Komawa Menu", callback_data="menu")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    if update.message:
+        await update.message.reply_text(menu_text, reply_markup=reply_markup, parse_mode="Markdown")
+    elif update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(menu_text, reply_markup=reply_markup, parse_mode="Markdown")
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await send_main_menu(update, context)
 
 async def get_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text("Don Allah ka bayar da sunan coin. Misali: /price bitcoin")
         return
+
+    await update.message.chat.send_action(action=ChatAction.TYPING)
 
     coin_name = " ".join(context.args).lower()
     try:
@@ -170,39 +190,23 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE):
     save_alerts(price_alerts)
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Ban gane wannan umarnin ba. Don Allah gwada umarni kamar /start ko /help.")
-
-async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message:
-        await update.message.reply_text("✅ Ka dawo zuwa menu.", reply_markup=main_menu_keyboard())
-    elif update.callback_query:
-        query = update.callback_query
-        await query.answer()
-        await query.edit_message_text("✅ Ka dawo zuwa menu.", reply_markup=main_menu_keyboard())
-
-def main_menu_keyboard():
-    keyboard = [
-        [InlineKeyboardButton("📈 Farashi", callback_data="price")],
-        [InlineKeyboardButton("🛎️ Saita Faɗakarwa", callback_data="alert")],
-        [InlineKeyboardButton("📚 Jagora", callback_data="guide")],
-        [InlineKeyboardButton("🔙 Komawa Menu", callback_data="back")]
-    ]
-    return InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Ban gane wannan umarnin ba. Don Allah gwada umarni kamar /menu ko /price.")
 
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", start))
+    app.add_handler(CommandHandler("start", send_main_menu))
+    app.add_handler(CommandHandler("help", send_main_menu))
+    app.add_handler(CommandHandler("menu", send_main_menu))
     app.add_handler(CommandHandler("price", get_price))
     app.add_handler(CommandHandler("alert", set_alert))
     app.add_handler(CommandHandler("myalerts", my_alerts))
     app.add_handler(CommandHandler("cancelalert", cancel_alert))
-    app.add_handler(CommandHandler("back", back_to_menu))
-    app.add_handler(CallbackQueryHandler(back_to_menu, pattern="^back$"))
     app.add_handler(MessageHandler(filters.COMMAND, unknown))
+    app.add_handler(CallbackQueryHandler(send_main_menu, pattern="^(menu|price|alert|guide|myalerts)$"))
     app.job_queue.run_repeating(check_alerts, interval=300, first=10)
     logger.info("Bot yana farawa...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
     main()
+        
