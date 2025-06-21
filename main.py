@@ -23,6 +23,7 @@ if not TELEGRAM_BOT_TOKEN:
 
 COINGECKO_API_URL = "https://api.coingecko.com/api/v3/simple/price"
 ALERTS_FILE = "alerts.json"
+SETUP_GUIDE_LINK = "https://t.me/c/2544548450/3" # Sabon link din da ka bayar
 
 def load_alerts():
     """Loads alerts from the JSON file."""
@@ -31,7 +32,6 @@ def load_alerts():
             try:
                 return json.load(f)
             except json.JSONDecodeError:
-                # Handle empty or malformed JSON file
                 logger.warning("alerts.json is empty or malformed, initializing with empty dictionary.")
                 return {}
     return {}
@@ -52,19 +52,21 @@ async def send_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🤖 *Crypto Price Bot Menu*\n"
         "Zaɓi ɗaya daga cikin abubuwa masu zuwa:"
     )
-    # Changed the main menu buttons as per requirements
     keyboard = [
+        [InlineKeyboardButton("📚 Setup Guide", url=SETUP_GUIDE_LINK)], # Added Setup Guide button with URL
         [InlineKeyboardButton("📈 Duba Farashin Cryptocurrency", callback_data="show_price_info")],
         [InlineKeyboardButton("🛎️ Saita Faɗakarwar Farashi", callback_data="show_alert_info")],
-        [InlineKeyboardButton("📋 Duba Faɗakarwarka", callback_data="my_alerts_button")], # Changed callback_data
+        [InlineKeyboardButton("📋 Duba Faɗakarwarka", callback_data="my_alerts_button")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    if update.message:
-        await update.message.reply_text(menu_text, reply_markup=reply_markup, parse_mode="Markdown")
-    elif update.callback_query:
+    # Logic to edit existing message or send a new one
+    if update.callback_query:
         await update.callback_query.answer()
         await update.callback_query.edit_message_text(menu_text, reply_markup=reply_markup, parse_mode="Markdown")
+    elif update.message:
+        await update.message.reply_text(menu_text, reply_markup=reply_markup, parse_mode="Markdown")
+
 
 async def show_price_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Provides information on how to use the /price command."""
@@ -94,27 +96,16 @@ async def show_alert_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(info_text, reply_markup=reply_markup, parse_mode="Markdown")
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handles the /start command and provides the initial welcome message."""
-    welcome_message = (
-        "🤖 *Barka da zuwa Crypto Price Bot!* 🤖\n\n"
-        "Ni ne bot din da zai taimaka maka duba farashin cryptocurrencies da kuma saita faɗakarwar farashi.\n\n"
-        "Ga yadda zaka yi amfani da ni:\n"
-        "`/start` - 🤖 Fara amfani da bot\n"
-        "`/menu` - 📋 Nuna babban menu\n"
-        "`/price <coin_name>` - 📈 Duba farashin coin (misali: `/price bitcoin`)\n"
-        "`/alert <coin_name> <price> <up/down>` - 🛎️ Saita faɗakarwa (misali: `/alert ethereum 3000 up`)\n"
-        "`/myalerts` - 📋 Duba faɗakarwar da aka saita\n"
-        "`/cancelalert <coin_name>` - ❌ Soke faɗakarwa (misali: `/cancelalert bitcoin`)\n"
-        "`/help` - 📚 Taimako da bayani"
-    )
-    await update.message.reply_text(welcome_message, parse_mode="Markdown")
+    """Handles the /start command and provides the initial welcome message with main menu buttons."""
+    await send_main_menu(update, context) # Directly show the main menu with the new buttons
+
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Provides help information."""
+    """Provides help information. This is now primarily for the /help command, not a menu button."""
     help_message = (
         "📚 *Taimako da Bayani*\n\n"
         "Ga jerin umarnoni da zaka iya amfani dasu:\n"
-        "`/start` - 🤖 Fara amfani da bot\n"
+        "`/start` - 🤖 Fara amfani da bot (Zai nuna babban menu)\n"
         "`/menu` - 📋 Nuna babban menu\n"
         "`/price <coin_name>` - 📈 Duba farashin coin (misali: `/price bitcoin`)\n"
         "`/alert <coin_name> <price> <up/down>` - 🛎️ Saita faɗakarwa (misali: `/alert ethereum 3000 up`)\n"
@@ -170,73 +161,60 @@ async def get_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(price_message, reply_markup=reply_markup, parse_mode="Markdown")
+    # Changed to edit_message_text if it's a callback query leading to this,
+    # but for direct /price command, it's reply_text
+    if update.callback_query: # This case is unlikely for /price command but good for consistency
+        await update.callback_query.edit_message_text(price_message, reply_markup=reply_markup, parse_mode="Markdown")
+    else: # For direct command usage
+        await update.message.reply_text(price_message, reply_markup=reply_markup, parse_mode="Markdown")
 
 async def set_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sets a price alert for a cryptocurrency."""
+    alert_message = "" # Initialize here for scope
     if len(context.args) < 3:
-        keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            "Don Allah ka bayar da sunan coin, farashi, da kuma shugabanci (up/down). Misali: `/alert ethereum 3000 up`",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
-        return
-
-    coin_name = context.args[0].lower()
-    try:
-        target_price = float(context.args[1])
-    except ValueError:
-        keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            "Farashin da ka bayar ba lamba ba ce. Misali: `/alert ethereum 3000 up`",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
-        return
-
-    direction = context.args[2].lower()
-    if direction not in ['up', 'down']:
-        keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            "Shugabancin dole ne ya zama 'up' ko 'down'. Misali: `/alert ethereum 3000 up`",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
-        return
-
-    chat_id = update.effective_chat.id
-    alert_message = ""
-    try:
-        search_url = f"https://api.coingecko.com/api/v3/search?query={coin_name}"
-        search_response = requests.get(search_url).json()
-        coin_id = None
-        for coin in search_response.get('coins', []):
-            if coin['symbol'].lower() == coin_name or coin['name'].lower() == coin_name:
-                coin_id = coin['id']
-                break
-        if not coin_id:
-            alert_message = f"Ba a sami coin din '{coin_name}' ba. Don Allah tabbatar da sunan coin daidai ne."
+        alert_message = "Don Allah ka bayar da sunan coin, farashi, da kuma shugabanci (up/down). Misali: `/alert ethereum 3000 up`"
+    else:
+        coin_name = context.args[0].lower()
+        try:
+            target_price = float(context.args[1])
+        except ValueError:
+            alert_message = "Farashin da ka bayar ba lamba ba ce. Misali: `/alert ethereum 3000 up`"
         else:
-            if chat_id not in price_alerts:
-                price_alerts[chat_id] = {}
-            price_alerts[chat_id][coin_id] = {
-                'target_price': target_price,
-                'direction': direction,
-                'original_coin_name': coin_name
-            }
-            save_alerts(price_alerts)
-            alert_message = f"An saita faɗakarwa don {coin_name.capitalize()}: lokacin da farashin ya kai ${target_price:,.2f} ({direction})."
-    except Exception as e:
-        logger.error(f"Kuskure yayin saita faɗakarwa: {e}")
-        alert_message = "An samu kuskure yayin saita faɗakarwa. Don Allah gwada anjima."
+            direction = context.args[2].lower()
+            if direction not in ['up', 'down']:
+                alert_message = "Shugabancin dole ne ya zama 'up' ko 'down'. Misali: `/alert ethereum 3000 up`"
+            else:
+                chat_id = update.effective_chat.id
+                try:
+                    search_url = f"https://api.coingecko.com/api/v3/search?query={coin_name}"
+                    search_response = requests.get(search_url).json()
+                    coin_id = None
+                    for coin in search_response.get('coins', []):
+                        if coin['symbol'].lower() == coin_name or coin['name'].lower() == coin_name:
+                            coin_id = coin['id']
+                            break
+                    if not coin_id:
+                        alert_message = f"Ba a sami coin din '{coin_name}' ba. Don Allah tabbatar da sunan coin daidai ne."
+                    else:
+                        if chat_id not in price_alerts:
+                            price_alerts[chat_id] = {}
+                        price_alerts[chat_id][coin_id] = {
+                            'target_price': target_price,
+                            'direction': direction,
+                            'original_coin_name': coin_name
+                        }
+                        save_alerts(price_alerts)
+                        alert_message = f"An saita faɗakarwa don {coin_name.capitalize()}: lokacin da farashin ya kai ${target_price:,.2f} ({direction})."
+                except Exception as e:
+                    logger.error(f"Kuskure yayin saita faɗakarwa: {e}")
+                    alert_message = "An samu kuskure yayin saita faɗakarwa. Don Allah gwada anjima."
 
     keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(alert_message, reply_markup=reply_markup, parse_mode="Markdown")
+    if update.callback_query: # This case is unlikely for /alert command but good for consistency
+        await update.callback_query.edit_message_text(alert_message, reply_markup=reply_markup, parse_mode="Markdown")
+    else: # For direct command usage
+        await update.message.reply_text(alert_message, reply_markup=reply_markup, parse_mode="Markdown")
 
 
 async def my_alerts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -255,47 +233,45 @@ async def my_alerts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    if update.message:
-        await update.message.reply_text(message_text, reply_markup=reply_markup, parse_mode="Markdown")
-    elif update.callback_query:
+    # Use edit_message_text if the action came from a callback query
+    if update.callback_query:
         await update.callback_query.answer()
         await update.callback_query.edit_message_text(message_text, reply_markup=reply_markup, parse_mode="Markdown")
+    else: # For direct command usage
+        await update.message.reply_text(message_text, reply_markup=reply_markup, parse_mode="Markdown")
 
 
 async def cancel_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancels a specific price alert."""
+    cancel_message = "" # Initialize here for scope
     if not context.args:
-        keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            "Don Allah ka bayar da sunan coin da zaka soke faɗakarwarsa. Misali: `/cancelalert bitcoin`",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
-        return
-
-    coin_name = " ".join(context.args).lower()
-    chat_id = update.effective_chat.id
-    alerts = price_alerts.get(chat_id, {})
-    to_remove = None
-    cancel_message = ""
-    for coin_id, info in alerts.items():
-        if info.get('original_coin_name', coin_id).lower() == coin_name:
-            to_remove = coin_id
-            break
-    
-    if to_remove:
-        del alerts[to_remove]
-        if not alerts: # If no alerts left for the user, remove their entry
-            del price_alerts[chat_id]
-        save_alerts(price_alerts)
-        cancel_message = f"An soke faɗakarwa don {coin_name.capitalize()}."
+        cancel_message = "Don Allah ka bayar da sunan coin da zaka soke faɗakarwarsa. Misali: `/cancelalert bitcoin`"
     else:
-        cancel_message = f"Ba a sami faɗakarwa don '{coin_name}' ba."
+        coin_name = " ".join(context.args).lower()
+        chat_id = update.effective_chat.id
+        alerts = price_alerts.get(chat_id, {})
+        to_remove = None
+        for coin_id, info in alerts.items():
+            if info.get('original_coin_name', coin_id).lower() == coin_name:
+                to_remove = coin_id
+                break
+        
+        if to_remove:
+            del alerts[to_remove]
+            if not alerts: # If no alerts left for the user, remove their entry
+                del price_alerts[chat_id]
+            save_alerts(price_alerts)
+            cancel_message = f"An soke faɗakarwa don {coin_name.capitalize()}."
+        else:
+            cancel_message = f"Ba a sami faɗakarwa don '{coin_name}' ba."
     
     keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(cancel_message, reply_markup=reply_markup, parse_mode="Markdown")
+
+    if update.callback_query: # This case is unlikely for /cancelalert command but good for consistency
+        await update.callback_query.edit_message_text(cancel_message, reply_markup=reply_markup, parse_mode="Markdown")
+    else: # For direct command usage
+        await update.message.reply_text(cancel_message, reply_markup=reply_markup, parse_mode="Markdown")
 
 async def check_alerts(context: ContextTypes.DEFAULT_TYPE):
     """Periodically checks current prices against set alerts and notifies users."""
@@ -334,11 +310,20 @@ async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles unknown commands."""
     keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        "Ban gane wannan umarnin ba. Don Allah gwada umarni kamar `/menu` ko `/price bitcoin`.",
-        reply_markup=reply_markup,
-        parse_mode="Markdown"
-    )
+    # Use edit_message_text if the unknown command was typed in a message that could be edited
+    # but for a fresh command, reply_text is better
+    if update.callback_query: # This path is unlikely for /unknown command directly
+        await update.callback_query.edit_message_text(
+            "Ban gane wannan umarnin ba. Don Allah gwada umarni kamar `/menu` ko `/price bitcoin`.",
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
+    else:
+        await update.message.reply_text(
+            "Ban gane wannan umarnin ba. Don Allah gwada umarni kamar `/menu` ko `/price bitcoin`.",
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles all callback queries from inline keyboard buttons."""
@@ -351,10 +336,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_price_info(update, context)
     elif query.data == "show_alert_info":
         await show_alert_info(update, context)
-    elif query.data == "my_alerts_button": # This will now call my_alerts_command
+    elif query.data == "my_alerts_button":
         await my_alerts_command(update, context)
-    # The 'guide' callback_data is now handled by help_command
-    elif query.data == "guide":
+    # Note: 'guide' callback_data for help is no longer in the main menu, 
+    # but kept here if it might come from somewhere else. 
+    # The /help command serves as the primary way to get full help text now.
+    elif query.data == "guide": 
         await help_command(update, context)
 
 
@@ -363,19 +350,19 @@ def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
     # Command Handlers
-    app.add_handler(CommandHandler("start", start_command)) # Changed to start_command for initial message
+    app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("menu", send_main_menu))
     app.add_handler(CommandHandler("price", get_price))
     app.add_handler(CommandHandler("alert", set_alert))
-    app.add_handler(CommandHandler("myalerts", my_alerts_command)) # Changed to my_alerts_command
+    app.add_handler(CommandHandler("myalerts", my_alerts_command))
     app.add_handler(CommandHandler("cancelalert", cancel_alert))
 
     # Message Handler for unknown commands
     app.add_handler(MessageHandler(filters.COMMAND, unknown))
     
     # Callback Query Handler for inline keyboard buttons
-    app.add_handler(CallbackQueryHandler(button_handler)) # Single handler for all button clicks
+    app.add_handler(CallbackQueryHandler(button_handler))
 
     # Job Queue for checking alerts
     app.job_queue.run_repeating(check_alerts, interval=300, first=10) # Checks every 5 minutes (300 seconds)
@@ -385,4 +372,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+                        
