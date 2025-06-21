@@ -1,14 +1,13 @@
 import os
 import logging
 import requests
-from telegram import Update
+import json
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-from telegram import
-InlinekeyboardButton,
-Inlinekeyboardmarkup
     Application,
     CommandHandler,
     MessageHandler,
+    CallbackQueryHandler,
     filters,
     ContextTypes
 )
@@ -22,7 +21,19 @@ if not TELEGRAM_BOT_TOKEN:
     raise ValueError("⚠️ BOT_TOKEN bai da kyau ko bai samu ba daga .env file. Tabbatar ka saka BOT_TOKEN=... a cikin .env")
 
 COINGECKO_API_URL = "https://api.coingecko.com/api/v3/simple/price"
-price_alerts = {}
+ALERTS_FILE = "alerts.json"
+
+def load_alerts():
+    if os.path.exists(ALERTS_FILE):
+        with open(ALERTS_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def save_alerts(data):
+    with open(ALERTS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+price_alerts = load_alerts()
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -99,6 +110,7 @@ async def set_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'direction': direction,
             'original_coin_name': coin_name
         }
+        save_alerts(price_alerts)
         await update.message.reply_text(
             f"An saita faɗakarwa don {coin_name.capitalize()}: lokacin da farashin ya kai ${target_price:,.2f} ({direction}).")
     except Exception as e:
@@ -131,6 +143,7 @@ async def cancel_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
             break
     if to_remove:
         del alerts[to_remove]
+        save_alerts(price_alerts)
         await update.message.reply_text(f"An soke faɗakarwa don {coin_name.capitalize()}.")
     else:
         await update.message.reply_text(f"Ba a sami faɗakarwa don '{coin_name}' ba.")
@@ -150,13 +163,15 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE):
                     msg = f"📣 Faɗakarwa! Farashin {name.capitalize()} ya kai ${current_price:,.2f}, wanda ya kai ko ya wuce ${target_price:,.2f} da ka saita."
                     await context.bot.send_message(chat_id=chat_id, text=msg)
                     del alerts[coin_id]
-                if not alerts:
-                    del price_alerts[chat_id]
             except Exception as e:
                 logger.error(f"Kuskure yayin duba faɗakarwa don {coin_id}: {e}")
+        if not alerts:
+            del price_alerts[chat_id]
+    save_alerts(price_alerts)
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Ban gane wannan umarnin ba. Don Allah gwada umarni kamar /start ko /help.")
+
 async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message:
         await update.message.reply_text("✅ Ka dawo zuwa menu.", reply_markup=main_menu_keyboard())
@@ -170,9 +185,10 @@ def main_menu_keyboard():
         [InlineKeyboardButton("📈 Farashi", callback_data="price")],
         [InlineKeyboardButton("🛎️ Saita Faɗakarwa", callback_data="alert")],
         [InlineKeyboardButton("📚 Jagora", callback_data="guide")],
-        InlineKeyboardButton("🔙 Komawa Menu", callback_data="back")],
+        [InlineKeyboardButton("🔙 Komawa Menu", callback_data="back")]
     ]
     return InlineKeyboardMarkup(keyboard)
+
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -181,10 +197,10 @@ def main():
     app.add_handler(CommandHandler("alert", set_alert))
     app.add_handler(CommandHandler("myalerts", my_alerts))
     app.add_handler(CommandHandler("cancelalert", cancel_alert))
-    app.add_handler(MessageHandler(filters.COMMAND, unknown))
-    app.job_queue.run_repeating(check_alerts, interval=300, first=10)
     app.add_handler(CommandHandler("back", back_to_menu))
     app.add_handler(CallbackQueryHandler(back_to_menu, pattern="^back$"))
+    app.add_handler(MessageHandler(filters.COMMAND, unknown))
+    app.job_queue.run_repeating(check_alerts, interval=300, first=10)
     logger.info("Bot yana farawa...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
