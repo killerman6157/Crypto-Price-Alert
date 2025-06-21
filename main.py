@@ -3,6 +3,9 @@ import logging
 import requests
 from telegram import Update
 from telegram.ext import (
+from telegram import
+InlinekeyboardButton,
+Inlinekeyboardmarkup
     Application,
     CommandHandler,
     MessageHandler,
@@ -167,6 +170,7 @@ def main_menu_keyboard():
         [InlineKeyboardButton("📈 Farashi", callback_data="price")],
         [InlineKeyboardButton("🛎️ Saita Faɗakarwa", callback_data="alert")],
         [InlineKeyboardButton("📚 Jagora", callback_data="guide")],
+        InlineKeyboardButton("🔙 Komawa Menu", callback_data="back")],
     ]
     return InlineKeyboardMarkup(keyboard)
 def main():
@@ -179,8 +183,8 @@ def main():
     app.add_handler(CommandHandler("cancelalert", cancel_alert))
     app.add_handler(MessageHandler(filters.COMMAND, unknown))
     app.job_queue.run_repeating(check_alerts, interval=300, first=10)
-    app.add_handler(CommandHandler("back", back_to_menu))  # 👈 Slash command
-    app.add_handler(CallbackQueryHandler(back_to_menu, pattern="^back$"))  # 👈 Button click
+    app.add_handler(CommandHandler("back", back_to_menu))
+    app.add_handler(CallbackQueryHandler(back_to_menu, pattern="^back$"))
     logger.info("Bot yana farawa...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
