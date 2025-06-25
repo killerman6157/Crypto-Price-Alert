@@ -5,6 +5,7 @@ import json
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ChatAction
 from telegram.ext import (
+from handlers.chart import send_price_chart
     Application,
     CommandHandler,
     MessageHandler,
@@ -426,3 +427,4 @@ async def send_price_chart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Kuskure yayin samun ko turawa chart: {e}")
         keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", c
+        application.add_handler(CommandHandler("chart", send_price_chart))
