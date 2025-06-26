@@ -13,7 +13,7 @@ from telegram.ext import (
     ContextTypes
 )
 from dotenv import load_dotenv
-import urllib.parse
+import urllib.parse # Muhimmi: An ƙara wannan import din don URL encoding
 
 # Load environment variables from .env file
 load_dotenv()
@@ -25,12 +25,14 @@ if not TELEGRAM_BOT_TOKEN:
 # SAITA ID DIN ADMIN ANAN!
 # Ka canja '0000000000' zuwa naka Telegram User ID na gaske.
 # Zaka iya samun ID din ka ta hanyar aika sako ga @userinfobot a Telegram.
-ADMIN_USER_ID = 0000000000 # <-- CANJA WANNAN ZUWA NAKA ID NA TELEGRAM!
+ADMIN_USER_ID = 1234567890 # <-- CANJA WANNAN ZUWA NAKA ID NA TELEGRAM!
 
-COINGECKO_API_URL = "https://api.coingecko.com/api/v3/simple/price"
+# URLs da sauran constants
+COINGECKO_API_URL = "https://api.coingecko.com/api/v3" # An canja zuwa babban API URL
 ALERTS_FILE = "alerts.json"
-SETUP_GUIDE_LINK = "https://t.me/c/2544548450/3"
+SETUP_GUIDE_LINK = "https://t.me/c/2544548450/3" # Link din Jagora
 
+# ---- Functions for managing alerts (loading/saving) ----
 def load_alerts():
     """Loads alerts from the JSON file."""
     if os.path.exists(ALERTS_FILE):
@@ -47,10 +49,14 @@ def save_alerts(data):
     with open(ALERTS_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
+# Load existing alerts when the bot starts
 price_alerts = load_alerts()
 
+# ---- Configure logging ----
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# ---- Command Handlers ----
 
 async def send_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sends or edits the main menu message."""
@@ -63,7 +69,7 @@ async def send_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📈 Duba Farashin Cryptocurrency", callback_data="show_price_info")],
         [InlineKeyboardButton("🛎️ Saita Faɗakarwar Farashi", callback_data="show_alert_info")],
         [InlineKeyboardButton("📋 Duba Faɗakarwarka", callback_data="my_alerts_button")],
-        [InlineKeyboardButton("📊 Chart na Cryptocurrency", callback_data="show_chart_info")],
+        [InlineKeyboardButton("📊 Chart na Cryptocurrency", callback_data="show_chart_info")], # Sabon button din chart
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -111,7 +117,8 @@ async def show_chart_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     info_text = (
         "📊 *Duba Chart na Cryptocurrency*\n\n"
         "Don ganin chart na coin, yi amfani da umarnin `/chart` sannan ka rubuta sunan coin din.\n\n"
-        "Misali: `/chart bitcoin` ko `/chart ethereum`"
+        "Misali: `/chart bitcoin` ko `/chart ethereum`\n\n"
+        "⚠️ *Lura:* Aikin chart yana fuskantar matsala a halin yanzu kuma bazai yi aiki ba." # Sabon bayani game da matsalar chart
     )
     keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -134,7 +141,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "`/alert <coin_name> <price> <up/down>` - 🛎️ Saita faɗakarwa (misali: `/alert ethereum 3000 up`)\n"
         "`/myalerts` - 📋 Duba faɗakarwar da aka saita\n"
         "`/cancelalert <coin_name>` - ❌ Soke faɗakarwa (misali: `/cancelalert bitcoin`)\n"
-        "`/chart <coin_name>` - 📊 Duba chart na coin (misali: `/chart bitcoin`)"
+        "`/chart <coin_name>` - 📊 Duba chart na coin (misali: `/chart bitcoin`)\n\n"
+        "⚠️ *Lura:* Aikin chart yana fuskantar matsala a halin yanzu kuma bazai yi aiki ba." # Sabon bayani
     )
     keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -146,7 +154,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.edit_message_text(help_message, reply_markup=reply_markup, parse_mode="Markdown")
 
 async def get_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Fetches and displays the price of a given cryptocurrency."""
+    """Fetches and displays detailed price information of a given cryptocurrency."""
     if not context.args:
         keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -161,26 +169,92 @@ async def get_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.chat.send_action(action=ChatAction.TYPING)
 
-    coin_name = " ".join(context.args).lower()
+    coin_query = " ".join(context.args).lower()
     price_message = ""
+    coin_id = None
+    coin_symbol = None
+    coin_name_proper = None
+
     try:
-        search_url = f"https://api.coingecko.com/api/v3/search?query={coin_name}"
+        # Mataki 1: Sami coin_id da symbol daga CoinGecko search
+        search_url = f"{COINGECKO_API_URL}/search?query={coin_query}"
         search_response = requests.get(search_url).json()
-        coin_id = None
+        
         for coin in search_response.get('coins', []):
-            if coin['symbol'].lower() == coin_name or coin['name'].lower() == coin_name:
+            if coin['symbol'].lower() == coin_query or coin['name'].lower() == coin_query:
                 coin_id = coin['id']
+                coin_symbol = coin['symbol'].upper()
+                coin_name_proper = coin['name']
                 break
+        
         if not coin_id:
-            price_message = f"Ba a sami coin din '{coin_name}' ba. Don Allah tabbatar da sunan coin daidai ne."
+            price_message = f"Ba a sami coin din '{coin_query}' ba. Don Allah tabbatar da sunan coin daidai ne."
         else:
-            params = {"ids": coin_id, "vs_currencies": "usd"}
-            response = requests.get(COINGECKO_API_URL, params=params).json()
-            price = response.get(coin_id, {}).get('usd')
-            if price is not None:
-                price_message = f"Farashin {coin_name.capitalize()} a yanzu shine: ${price:,.2f}"
+            # Mataki 2: Sami cikakken bayani game da coin
+            coin_details_url = f"{COINGECKO_API_URL}/coins/{coin_id}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false"
+            coin_details_response = requests.get(coin_details_url).json()
+
+            market_data = coin_details_response.get('market_data', {})
+            
+            current_price_usd = market_data.get('current_price', {}).get('usd')
+            current_price_btc = market_data.get('current_price', {}).get('btc')
+            
+            # Canje-canje na yini ɗaya
+            price_change_24h_percent = market_data.get('price_change_percentage_24h')
+            
+            # Canje-canje na awa ɗaya (ba koyaushe ake samunsu ba daga CoinGecko simple API)
+            # Idan kuna buƙatar awa 1, zai iya buƙatar wani API call daban ko kuma ƙidaya da kanku idan kuna da data na baya.
+            # A yanzu, zan sa "N/A"
+            price_change_1h_percent = market_data.get('price_change_percentage_1h_in_currency', {}).get('usd') # Yana iya zama baya nan
+            
+            total_volume_usd = market_data.get('total_volume', {}).get('usd')
+            market_cap_usd = market_data.get('market_cap', {}).get('usd')
+            circulating_supply = market_data.get('circulating_supply')
+            total_supply = market_data.get('total_supply')
+
+            if current_price_usd is not None:
+                # Tsarin sakon yadda kake so
+                price_message = (
+                    f"*{coin_name_proper} ({coin_symbol})*\n\n"
+                    f"Farashi: ${current_price_usd:,.2f} USD\n"
+                )
+                if current_price_btc is not None:
+                    price_message += f"Farashi: {current_price_btc:.8f} BTC\n"
+                
+                if price_change_1h_percent is not None:
+                     price_message += f"Canji 1hr: {price_change_1h_percent:+.2f}%\n"
+                else:
+                     price_message += "Canji 1hr: N/A\n" # Idan babu bayanai
+                
+                if price_change_24h_percent is not None:
+                    price_message += f"Canji 24hr: {price_change_24h_percent:+.2f}%\n"
+                else:
+                    price_message += "Canji 24hr: N/A\n"
+
+                price_message += "\n" # Layi fanko
+
+                if total_volume_usd is not None:
+                    price_message += f"Volume: ${total_volume_usd:,.2f}\n"
+                if market_cap_usd is not None:
+                    price_message += f"Market Cap: ${market_cap_usd:,.2f}\n"
+                if circulating_supply is not None:
+                    price_message += f"Circulating Supply: {circulating_supply:,.0f}\n"
+                if total_supply is not None:
+                    price_message += f"Total Supply: {total_supply:,.0f}\n"
+                
+                # Link zuwa CoinMarketCap da CoinGecko
+                coinmarketcap_link = f"https://coinmarketcap.com/currencies/{coin_id}/"
+                coingecko_link = f"https://www.coingecko.com/en/coins/{coin_id}"
+
+                price_message += (
+                    f"\n🚀 [Duba a CoinMarketCap]({coinmarketcap_link})\n"
+                    f"🦎 [Duba a CoinGecko]({coingecko_link})"
+                )
             else:
-                price_message = f"Ba a sami farashin {coin_name} ba a yanzu. Gwada anjima."
+                price_message = f"Ba a sami farashin {coin_name_proper} ba a yanzu. Gwada anjima."
+    except requests.exceptions.RequestException as req_err:
+        logger.error(f"Kuskure yayin samun farashi (Network Error): {req_err}")
+        price_message = "An samu kuskure ta hanyar sadarwa. Don Allah gwada anjima."
     except Exception as e:
         logger.error(f"Kuskure yayin samun farashi: {e}")
         price_message = "An samu kuskure yayin kokarin samun farashin. Don Allah gwada anjima."
@@ -211,7 +285,7 @@ async def set_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 chat_id = update.effective_chat.id
                 try:
-                    search_url = f"https://api.coingecko.com/api/v3/search?query={coin_name}"
+                    search_url = f"{COINGECKO_API_URL}/search?query={coin_name}"
                     search_response = requests.get(search_url).json()
                     coin_id = None
                     for coin in search_response.get('coins', []):
@@ -299,130 +373,36 @@ async def cancel_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['last_editable_chat_id'] = sent_message.chat_id
 
 
+# === Aikin Chart (an ajiye shi na ɗan lokaci saboda matsalar) ===
 async def send_price_chart(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        sent_message = await update.message.reply_text(
-            "Don Allah ka bayar da sunan coin don ganin chart. Misali: `/chart bitcoin`",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
-        context.user_data['last_editable_message_id'] = sent_message.message_id
-        context.user_data['last_editable_chat_id'] = sent_message.chat_id
-        return
+    """Placeholder function for chart, as it's currently problematic."""
+    keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    sent_message = await update.message.reply_text(
+        "⚠️ *Aikin chart yana fuskantar matsala a halin yanzu kuma bazai yi aiki ba.* Don Allah gwada anjima.",
+        reply_markup=reply_markup,
+        parse_mode="Markdown"
+    )
+    context.user_data['last_editable_message_id'] = sent_message.message_id
+    context.user_data['last_editable_chat_id'] = sent_message.chat_id
+    return
 
-    await update.message.chat.send_action(action=ChatAction.UPLOAD_PHOTO)
+    # Aikin chart na asali wanda muka ajiye na ɗan lokaci
+    # Idan kana so ka sake gwadawa nan gaba, ka cire comment a ƙasan nan
+    # (Sai ka cire wannan 'return' da ke sama kafin waɗannan)
 
-    coin_name = " ".join(context.args).lower()
+    # if not context.args:
+    #     keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
+    #     reply_markup = InlineKeyboardMarkup(keyboard)
+    #     sent_message = await update.message.reply_text(
+    #         "Don Allah ka bayar da sunan coin don ganin chart. Misali: `/chart bitcoin`",
+    #         reply_markup=reply_markup,
+    #         parse_mode="Markdown"
+    #     )
+    #     context.user_data['last_editable_message_id'] = sent_message.message_id
+    #     context.user_data['last_editable_chat_id'] = sent_message.chat_id
+    #     return
 
-    try:
-        search_url = f"https://api.coingecko.com/api/v3/search?query={coin_name}"
-        search_response = requests.get(search_url).json()
-        coin_id = None
-        for coin in search_response.get('coins', []):
-            if coin['symbol'].lower() == coin_name or coin['name'].lower() == coin_name:
-                coin_id = coin['id']
-                break
-        if not coin_id:
-            chart_message = f"Ba a sami coin din '{coin_name}' ba. Don Allah tabbatar da sunan coin daidai ne."
-            keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            sent_message = await update.message.reply_text(chart_message, reply_markup=reply_markup, parse_mode="Markdown")
-            context.user_data['last_editable_message_id'] = sent_message.message_id
-            context.user_data['last_editable_chat_id'] = sent_message.chat_id
-            return
+    # await update.message.chat.send_action(action=ChatAction.UPLOAD_PHOTO)
 
-        ohlc_url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/ohlc?vs_currency=usd&days=3"
-        ohlc_response = requests.get(ohlc_url).json()
-
-        if not ohlc_response:
-            chart_message = f"Ba a sami bayanan chart na '{coin_name}' ba a yanzu."
-            keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            sent_message = await update.message.reply_text(chart_message, reply_markup=reply_markup, parse_mode="Markdown")
-            context.user_data['last_editable_message_id'] = sent_message.message_id
-            context.user_data['last_editable_chat_id'] = sent_message.chat_id
-            return
-
-        labels = [data[0] for data in ohlc_response]
-        open_data = [data[1] for data in ohlc_response]
-        high_data = [data[2] for data in ohlc_response]
-        low_data = [data[3] for data in ohlc_response]
-        close_data = [data[4] for data in ohlc_response]
-
-        candlestick_data = []
-        for i in range(len(ohlc_response)):
-            candlestick_data.append({
-                "x": labels[i],
-                "o": open_data[i],
-                "h": high_data[i],
-                "l": low_data[i],
-                "c": close_data[i]
-            })
-
-        chart_config = {
-            "type": "candlestick",
-            "data": {
-                "datasets": [{
-                    "label": f"{coin_name.capitalize()} Price",
-                    "data": candlestick_data,
-                    "backgroundColor": "rgba(75, 192, 192, 0.2)",
-                    "borderColor": "rgba(75, 192, 192, 1)",
-                    "borderWidth": 1
-                }]
-            },
-            "options": {
-                "responsive": True,
-                "maintainAspectRatio": False,
-                "scales": {
-                    "x": {
-                        "type": "time",
-                        "time": {
-                            "unit": "day",
-                            "displayFormats": {
-                                "day": "MMM D"
-                            }
-                        },
-                        "title": {
-                            "display": True,
-                            "text": "Kwanaki"
-                        }
-                    },
-                    "y": {
-                        "beginAtZero": False,
-                        "title": {
-                            "display": True,
-                            "text": "Farashi (USD)"
-                        }
-                    }
-                },
-                "plugins": {
-                    "title": {
-                        "display": True,
-                        "text": f"{coin_name.capitalize()} Candlestick Chart (Kwana 3)"
-                    }
-                }
-            }
-        }
-
-        quickchart_base_url = "https://quickchart.io/chart"
-        encoded_chart_config = urllib.parse.quote_plus(json.dumps(chart_config))
-        quickchart_url = f"{quickchart_base_url}?width=800&height=400&c={encoded_chart_config}"
-        
-        logger.info(f"Generated QuickChart URL: {quickchart_url[:200]}...")
-
-        keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", callback_data="back_to_main_menu")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        sent_message = await update.message.reply_photo(
-            photo=quickchart_url,
-            caption=f"Candlestick Chart na {coin_name.capitalize()} (Kwana 3)",
-            reply_markup=reply_markup
-        )
-        context.user_data['last_editable_message_id'] = sent_message.message_id
-        context.user_data['last_editable_chat_id'] = sent_message.chat_id
-
-    except Exception as e:
-        logger.error(f"Kuskure yayin samun ko turawa chart: {e}")
-        keyboard = [[InlineKeyboardButton("🔙 Komawa Menu", c
+    # coin_name = " ".join
